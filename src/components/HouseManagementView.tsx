@@ -23,6 +23,10 @@ import {
   ShieldAlert,
   Sparkles,
   Archive,
+  Settings,
+  Trash2,
+  AlertTriangle,
+  Building2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -38,6 +42,7 @@ interface HouseManagementViewProps {
   onCloseMonth: (yearMonth: string) => void;
   onMarkBillPaid: (billId: string) => void;
   onOpenHouseholdsModal?: () => void;
+  onDeleteHousehold?: (householdId: string) => void;
 }
 
 export function HouseManagementView({
@@ -52,6 +57,7 @@ export function HouseManagementView({
   onCloseMonth,
   onMarkBillPaid,
   onOpenHouseholdsModal,
+  onDeleteHousehold,
 }: HouseManagementViewProps) {
   const initialPeriod = useMemo(() => {
     if (transactions.length > 0) {
@@ -61,12 +67,13 @@ export function HouseManagementView({
     return new Date().toISOString().slice(0, 7);
   }, [transactions]);
 
-  const [activeSubtab, setActiveSubtab] = useState<'settlement' | 'members' | 'cards' | 'bills'>('settlement');
+  const [activeSubtab, setActiveSubtab] = useState<'settlement' | 'members' | 'cards' | 'bills' | 'settings'>('settlement');
   const [selectedPeriod, setSelectedPeriod] = useState(initialPeriod);
   const [copiedPixIdx, setCopiedPixIdx] = useState<number | null>(null);
   const [editingMemberIncomeId, setEditingMemberIncomeId] = useState<string | null>(null);
   const [tempIncomeStr, setTempIncomeStr] = useState('');
   const [monthClosedSuccess, setMonthClosedSuccess] = useState(false);
+  const [confirmDeleteCurrent, setConfirmDeleteCurrent] = useState(false);
 
   // Settlement for the chosen period
   const settlement = useMemo(() => {
@@ -138,6 +145,17 @@ export function HouseManagementView({
         >
           <FileText className="w-3.5 h-3.5" />
           <span>Boletos</span>
+        </button>
+        <button
+          onClick={() => setActiveSubtab('settings')}
+          className={`flex-1 min-w-[90px] py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+            activeSubtab === 'settings'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Settings className="w-3.5 h-3.5" />
+          <span>Residência</span>
         </button>
       </div>
 
@@ -592,6 +610,115 @@ export function HouseManagementView({
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= SUBTAB 5: RESIDÊNCIA & ZONA DE PERIGO ================= */}
+      {activeSubtab === 'settings' && (
+        <div className="space-y-4">
+          {/* Household Info Card */}
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">{household.name}</h3>
+                  <p className="text-[11px] text-slate-400">Identificador: {household.id}</p>
+                </div>
+              </div>
+              {onOpenHouseholdsModal && (
+                <button
+                  onClick={onOpenHouseholdsModal}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Trocar Casa</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-800">
+                <span className="text-slate-400 block text-[11px]">Método Padrão de Divisão</span>
+                <span className="font-semibold text-slate-200 mt-0.5 block">
+                  {household.defaultSplitMethod === 'proportional_income'
+                    ? 'Proporcional à Renda dos Moradores'
+                    : 'Divisão Igualitária (50/50)'}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-800">
+                <span className="text-slate-400 block text-[11px]">Regra Orçamentária</span>
+                <span className="font-semibold text-slate-200 mt-0.5 block">
+                  {household.budgetPercentages.needs}% Essencial / {household.budgetPercentages.wants}% Desejos / {household.budgetPercentages.savings}% Metas
+                </span>
+              </div>
+              <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-800">
+                <span className="text-slate-400 block text-[11px]">Reserva de Emergência Alvo</span>
+                <span className="font-semibold text-slate-200 mt-0.5 block">
+                  {household.emergencyFundMonthsTarget || 6} meses de despesas essenciais
+                </span>
+              </div>
+              <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-800">
+                <span className="text-slate-400 block text-[11px]">Total de Moradores Ativos</span>
+                <span className="font-semibold text-slate-200 mt-0.5 block">
+                  {members.length} {members.length === 1 ? 'morador' : 'moradores'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="p-4 rounded-2xl bg-rose-950/20 border border-rose-500/30 space-y-3">
+            <div className="flex items-center gap-2 text-rose-400 font-bold text-xs">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>Zona de Perigo</span>
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="text-sm font-semibold text-slate-100">Excluir esta Residência</h4>
+              <p className="text-xs text-slate-400">
+                Ao excluir <strong>"{household.name}"</strong>, todos os registros associados (despesas, boletos, contas a pagar, histórico de acertos e metas da casa) serão apagados permanentemente.
+              </p>
+            </div>
+
+            {confirmDeleteCurrent ? (
+              <div className="p-3 bg-rose-950/60 border border-rose-500/50 rounded-xl space-y-3 animate-in fade-in">
+                <p className="text-xs text-rose-200 font-medium">
+                  Tem certeza absoluta que deseja excluir a residência <strong>"{household.name}"</strong>? Esta ação não pode ser desfeita.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      if (onDeleteHousehold) {
+                        onDeleteHousehold(household.id);
+                      }
+                      setConfirmDeleteCurrent(false);
+                    }}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Sim, Excluir Definitivamente</span>
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteCurrent(false)}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl transition"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDeleteCurrent(true)}
+                className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 rounded-xl text-xs font-bold transition flex items-center gap-2"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Excluir Residência</span>
+              </button>
+            )}
           </div>
         </div>
       )}

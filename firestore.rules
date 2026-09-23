@@ -66,7 +66,10 @@ service cloud.firestore {
         incoming().name is string && incoming().name.size() <= 100;
       allow update: if isHouseholdOwnerOrMember(householdId) &&
         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'currency', 'ownerId', 'budgetPercentages', 'defaultSplitMethod', 'updatedAt']);
-      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow delete: if isSignedIn() && (
+        existing().ownerId == request.auth.uid ||
+        isHouseholdOwnerOrMember(householdId)
+      );
 
       // MEMBERS SUBCOLLECTION
       match /members/{memberId} {

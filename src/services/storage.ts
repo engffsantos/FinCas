@@ -866,6 +866,108 @@ export function createHousehold(
   };
 }
 
+export function deleteHousehold(state: AppState, householdId: string): AppState {
+  const targetHouse = state.households.find(h => h.id === householdId);
+  const remainingHouseholds = state.households.filter(h => h.id !== householdId);
+
+  let newActiveHousehold: Household;
+  let newMembers = state.members.filter(m => m.householdId !== householdId);
+  let activeMemberId = state.currentMemberId;
+
+  if (remainingHouseholds.length === 0) {
+    const fallbackId = `house_${Date.now()}`;
+    newActiveHousehold = {
+      id: fallbackId,
+      name: 'Minha Residência',
+      createdById: state.currentUser.id,
+      createdAt: new Date().toISOString(),
+      defaultSplitMethod: 'proportional_income',
+      budgetMethod: '50/30/20',
+      budgetPercentages: { needs: 50, wants: 30, savings: 20 },
+      emergencyFundMonthsTarget: 6,
+    };
+    remainingHouseholds.push(newActiveHousehold);
+
+    const fallbackMember: HouseholdMember = {
+      id: `mem_${Date.now()}`,
+      householdId: fallbackId,
+      userId: state.currentUser.id,
+      displayName: state.currentUser.name || 'Morador',
+      role: 'owner',
+      netIncome: toCents(5000),
+      color: '#10b981',
+      avatar: (state.currentUser.name || 'ME').slice(0, 2).toUpperCase(),
+      joinedAt: new Date().toISOString(),
+      permissions: {
+        canInvite: true,
+        canEditRules: true,
+        canAddSharedIncome: true,
+        canEditExpenses: true,
+        canDeleteExpenses: true,
+        canCloseMonth: true,
+        canViewOtherIncomes: true,
+        canViewAssets: true,
+        canViewPrivateDetails: true,
+      },
+    };
+    newMembers.push(fallbackMember);
+    activeMemberId = fallbackMember.id;
+  } else {
+    if (state.household.id === householdId) {
+      newActiveHousehold = remainingHouseholds[0];
+      const memberInTarget = newMembers.find(m => m.householdId === newActiveHousehold.id);
+      if (memberInTarget) {
+        activeMemberId = memberInTarget.id;
+      }
+    } else {
+      newActiveHousehold = state.household;
+    }
+  }
+
+  const deletedMemberIds = new Set(
+    state.members.filter(m => m.householdId === householdId).map(m => m.id)
+  );
+
+  const updatedTransactions = state.transactions.filter(t => t.householdId !== householdId);
+  const updatedBills = state.bills.filter(b => b.householdId !== householdId);
+  const updatedGoals = state.goals.filter(g => g.householdId !== householdId);
+  const updatedInvites = state.invites.filter(i => i.householdId !== householdId);
+  const updatedReceipts = state.receipts.filter(r => r.householdId !== householdId);
+  const updatedSnapshots = state.snapshots.filter(s => s.householdId !== householdId);
+  const updatedAccounts = state.accounts.filter(
+    a => a.householdId !== householdId && !deletedMemberIds.has(a.ownerMemberId)
+  );
+  const updatedCards = state.creditCards.filter(c => !deletedMemberIds.has(c.ownerMemberId));
+
+  const newLog: AuditLog = {
+    id: `log_${Date.now()}`,
+    householdId: newActiveHousehold.id,
+    memberId: activeMemberId,
+    action: 'delete',
+    entityType: 'rule',
+    entityId: householdId,
+    description: `Removeu a residência "${targetHouse?.name || householdId}"`,
+    timestamp: new Date().toISOString(),
+  };
+
+  return {
+    ...state,
+    households: remainingHouseholds,
+    household: newActiveHousehold,
+    members: newMembers,
+    currentMemberId: activeMemberId,
+    transactions: updatedTransactions,
+    bills: updatedBills,
+    goals: updatedGoals,
+    invites: updatedInvites,
+    receipts: updatedReceipts,
+    snapshots: updatedSnapshots,
+    accounts: updatedAccounts,
+    creditCards: updatedCards,
+    auditLogs: [newLog, ...state.auditLogs],
+  };
+}
+
 export function joinHouseholdByCode(state: AppState, inviteCode: string): { success: boolean; newState: AppState; error?: string } {
   const cleanCode = inviteCode.trim().toUpperCase();
   const invite = state.invites.find(i => i.code.toUpperCase() === cleanCode && i.status === 'active');

@@ -273,3 +273,30 @@ export function subscribeToHouseholdData(
     unsubGoals();
   };
 }
+
+/**
+ * Delete a Household document from Firestore
+ */
+export async function deleteHouseholdFromFirestore(householdId: string): Promise<void> {
+  if (!auth.currentUser) return;
+  const path = `households/${householdId}`;
+  try {
+    const houseRef = doc(db, 'households', householdId);
+    await deleteDoc(houseRef);
+
+    // Update user's households array if present
+    const userRef = doc(db, 'users', auth.currentUser.uid);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      const currentHouseholds: string[] = userSnap.data().households || [];
+      if (currentHouseholds.includes(householdId)) {
+        await updateDoc(userRef, {
+          households: currentHouseholds.filter(id => id !== householdId),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}

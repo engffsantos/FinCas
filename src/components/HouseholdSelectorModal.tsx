@@ -12,6 +12,8 @@ import {
   ShieldAlert,
   Share2,
   X,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Household, HouseholdInvite, HouseholdMember, User } from '../types';
 
@@ -27,6 +29,7 @@ interface HouseholdSelectorModalProps {
   onCreateHousehold: (name: string, defaultSplitMethod: any, budgetPercentages: any) => void;
   onJoinByCode: (code: string) => { success: boolean; error?: string };
   onCreateInvite: (householdId: string) => void;
+  onDeleteHousehold: (householdId: string) => void;
 }
 
 export function HouseholdSelectorModal({
@@ -41,6 +44,7 @@ export function HouseholdSelectorModal({
   onCreateHousehold,
   onJoinByCode,
   onCreateInvite,
+  onDeleteHousehold,
 }: HouseholdSelectorModalProps) {
   const [view, setView] = useState<'list' | 'create' | 'join' | 'invite'>('list');
   const [newHouseName, setNewHouseName] = useState('');
@@ -48,6 +52,7 @@ export function HouseholdSelectorModal({
   const [inviteCodeInput, setInviteCodeInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [confirmDeleteHouseId, setConfirmDeleteHouseId] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -137,22 +142,69 @@ export function HouseholdSelectorModal({
                   {households.map(house => {
                     const isSelected = house.id === activeHousehold.id;
                     const houseMembers = members.filter(m => m.householdId === house.id);
+                    const isConfirmingDelete = confirmDeleteHouseId === house.id;
+
+                    if (isConfirmingDelete) {
+                      return (
+                        <div
+                          key={house.id}
+                          className="p-3.5 bg-rose-950/40 border border-rose-500/40 rounded-2xl space-y-2.5 animate-in fade-in"
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                              <AlertTriangle className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-rose-200">
+                                Excluir "{house.name}"?
+                              </h4>
+                              <p className="text-[11px] text-slate-300 leading-tight mt-0.5">
+                                Esta ação é permanente e removerá todas as despesas, contas fixas e divisões desta residência.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-end gap-2 pt-1 border-t border-rose-500/20">
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteHouseId(null)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 transition"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onDeleteHousehold(house.id);
+                                setConfirmDeleteHouseId(null);
+                              }}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition flex items-center gap-1.5 shadow-md shadow-rose-900/30"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Sim, Excluir</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
-                      <button
+                      <div
                         key={house.id}
-                        onClick={() => {
-                          onSwitchHousehold(house.id);
-                          onClose();
-                        }}
-                        className={`w-full text-left p-3.5 rounded-2xl border transition flex items-center justify-between ${
+                        className={`w-full p-3.5 rounded-2xl border transition flex items-center justify-between group ${
                           isSelected
                             ? 'bg-emerald-950/30 border-emerald-500/50 shadow-sm'
                             : 'bg-slate-800/40 border-slate-800 hover:bg-slate-800/70'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div
+                          onClick={() => {
+                            onSwitchHousehold(house.id);
+                            onClose();
+                          }}
+                          className="flex items-center gap-3 cursor-pointer flex-1 mr-2"
+                        >
                           <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
                               isSelected
                                 ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
                                 : 'bg-slate-800 text-slate-300'
@@ -181,12 +233,26 @@ export function HouseholdSelectorModal({
                             </p>
                           </div>
                         </div>
-                        {isSelected && (
-                          <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-slate-950">
-                            <Check className="w-4 h-4 stroke-[3]" />
-                          </div>
-                        )}
-                      </button>
+
+                        <div className="flex items-center gap-1.5">
+                          {isSelected && (
+                            <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-slate-950 shrink-0">
+                              <Check className="w-4 h-4 stroke-[3]" />
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            title={`Excluir residência ${house.name}`}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setConfirmDeleteHouseId(house.id);
+                            }}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

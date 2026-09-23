@@ -12,6 +12,7 @@ import {
   addGoal,
   switchHousehold,
   createHousehold,
+  deleteHousehold,
   joinHouseholdByCode,
   createInvite,
   addReceipt,
@@ -26,6 +27,7 @@ import {
   ensureHouseholdInFirestore,
   saveTransactionToFirestore,
   deleteTransactionFromFirestore,
+  deleteHouseholdFromFirestore,
   saveBillToFirestore,
   saveMemberToFirestore,
   saveGoalToFirestore,
@@ -289,6 +291,16 @@ export default function App() {
     }
   };
 
+  // DELETE HOUSEHOLD ACTION
+  const handleDeleteHousehold = (householdId: string) => {
+    setState(prev => deleteHousehold(prev, householdId));
+    if (auth.currentUser) {
+      deleteHouseholdFromFirestore(householdId).catch(err =>
+        console.warn('Firestore delete household notice:', err)
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
       {/* Top Header */}
@@ -396,6 +408,7 @@ export default function App() {
             onCloseMonth={handleCloseMonth}
             onMarkBillPaid={handleMarkBillPaid}
             onOpenHouseholdsModal={() => setIsHouseholdsOpen(true)}
+            onDeleteHousehold={handleDeleteHousehold}
           />
         )}
       </main>
@@ -434,6 +447,7 @@ export default function App() {
         onCreateHousehold={handleCreateHousehold}
         onJoinByCode={handleJoinByCode}
         onCreateInvite={handleCreateInvite}
+        onDeleteHousehold={handleDeleteHousehold}
       />
 
       {/* Receipt Scanner & Semantic Fiscal Normalization Modal */}
