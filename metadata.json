@@ -1,0 +1,6 @@
+{
+  "name": "FinCas - Gestão Financeira da Casa",
+  "description": "Aplicativo mobile-first de gestão financeira colaborativa residencial: finanças individuais, orçamento compartilhado 50/30/20, divisão proporcional à renda e compensação inteligente de dívidas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isHouseholdOwnerOrMember(householdId) {
+      return isSignedIn() && (
+        (exists(/databases/$(database)/documents/households/$(householdId)) &&
+         get(/databases/$(database)/documents/households/$(householdId)).data.ownerId == request.auth.uid) ||
+        exists(/databases/$(database)/documents/households/$(householdId)/members/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         householdId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.households)
+      );
+    }
+
+    function canReadHouseholdSubcollection(householdId) {
+      return isSignedIn() && (
+        !exists(/databases/$(database)/documents/households/$(householdId)) ||
+        isHouseholdOwnerOrMember(householdId)
+      );
+    }
+
+    // USER PROFILES
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if isSignedIn() && resource.data.email == request.auth.token.email;
+      allow create: if isOwner(userId) &&
+        incoming().keys().hasAll(['name', 'email']) &&
+        incoming().name is string && incoming().name.size() <= 100 &&
+        incoming().email is string && incoming().email.size() <= 150;
+      allow update: if isOwner(userId) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'pixKey', 'avatarUrl', 'households', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // HOUSEHOLDS
+    match /households/{householdId} {
+      allow get: if canReadHouseholdSubcollection(householdId);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().name is string && incoming().name.size() <= 100;
+      allow update: if isHouseholdOwnerOrMember(householdId) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'currency', 'ownerId', 'budgetPercentages', 'defaultSplitMethod', 'updatedAt']);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      // MEMBERS SUBCOLLECTION
+      match /members/{memberId} {
+        allow get, list: if canReadHouseholdSubcollection(householdId);
+        allow create: if isSignedIn() && (
+          canReadHouseholdSubcollection(householdId) ||
+          get(/databases/$(database)/documents/households/$(householdId)).data.ownerId == request.auth.uid
+        );
+        allow update: if isHouseholdOwnerOrMember(householdId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'netIncome', 'role', 'color', 'avatar', 'permissions', 'updatedAt']);
+        allow delete: if isSignedIn() &&
+          get(/databases/$(database)/documents/households/$(householdId)).data.ownerId == request.auth.uid;
+      }
+
+      // TRANSACTIONS SUBCOLLECTION
+      match /transactions/{transactionId} {
+        allow get, list: if canReadHouseholdSubcollection(householdId);
+        allow create: if isHouseholdOwnerOrMember(householdId) &&
+          incoming().householdId == householdId &&
+          incoming().amount is number &&
+          incoming().description is string && incoming().description.size() <= 200;
+        allow update: if isHouseholdOwnerOrMember(householdId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'description', 'categoryId', 'date', 'scope', 'privacy', 'paidByMemberId', 'splitMethod', 'splits', 'establishment', 'paymentMethod', 'updatedAt']);
+        allow delete: if isHouseholdOwnerOrMember(householdId);
+      }
+
+      // BILLS SUBCOLLECTION
+      match /bills/{billId} {
+        allow get, list: if canReadHouseholdSubcollection(householdId);
+        allow create: if isHouseholdOwnerOrMember(householdId) &&
+          incoming().householdId == householdId &&
+          incoming().amount is number &&
+          incoming().description is string;
+        allow update: if isHouseholdOwnerOrMember(householdId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['description', 'amount', 'dueDate', 'status', 'scope', 'categoryId', 'splitMethod', 'assignedToMemberId', 'beneficiary', 'updatedAt']);
+        allow delete: if isHouseholdOwnerOrMember(householdId);
+      }
+
+      // GOALS SUBCOLLECTION
+      match /goals/{goalId} {
+        allow get, list: if canReadHouseholdSubcollection(householdId);
+        allow create: if isHouseholdOwnerOrMember(householdId) && incoming().householdId == householdId;
+        allow update: if isHouseholdOwnerOrMember(householdId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'targetAmount', 'currentAmount', 'targetDate', 'category', 'scope']);
+        allow delete: if isHouseholdOwnerOrMember(householdId);
+      }
+    }
+
+    // INVITES
+    match /invites/{inviteId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isHouseholdOwnerOrMember(incoming().householdId);
+      allow update: if isSignedIn() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['isUsed']);
+      allow delete: if isSignedIn();
+    }
+  }
+}

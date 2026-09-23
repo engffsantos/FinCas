@@ -1,0 +1,156 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile with household associations and Pix key",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "pixKey": { "type": "string", "maxLength": 100 },
+        "avatarUrl": { "type": "string", "maxLength": 500 },
+        "households": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["name", "email"]
+    },
+    "household": {
+      "title": "Household",
+      "description": "Household shared finance unit with members and budget rules",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "currency": { "type": "string", "maxLength": 10 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "defaultSplitMethod": { "type": "string", "maxLength": 50 },
+        "budgetPercentages": { "type": "object" },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["name", "currency", "ownerId"]
+    },
+    "member": {
+      "title": "HouseholdMember",
+      "description": "Resident member of a household with income and permissions",
+      "type": "object",
+      "properties": {
+        "householdId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "maxLength": 30 },
+        "netIncome": { "type": "number" },
+        "color": { "type": "string", "maxLength": 20 },
+        "avatar": { "type": "string", "maxLength": 10 },
+        "joinedAt": { "type": "string", "maxLength": 50 },
+        "permissions": { "type": "object" }
+      },
+      "required": ["householdId", "userId", "displayName", "role", "netIncome"]
+    },
+    "transaction": {
+      "title": "Transaction",
+      "description": "Income or expense ledger entry with splitting rules",
+      "type": "object",
+      "properties": {
+        "householdId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "maxLength": 20 },
+        "amount": { "type": "number" },
+        "description": { "type": "string", "maxLength": 200 },
+        "establishment": { "type": "string", "maxLength": 100 },
+        "categoryId": { "type": "string", "maxLength": 60 },
+        "date": { "type": "string", "maxLength": 20 },
+        "paidByMemberId": { "type": "string", "maxLength": 128 },
+        "scope": { "type": "string", "maxLength": 20 },
+        "privacy": { "type": "string", "maxLength": 20 },
+        "paymentMethod": { "type": "string", "maxLength": 40 },
+        "splitMethod": { "type": "string", "maxLength": 50 },
+        "splits": { "type": "array" },
+        "receiptId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["householdId", "type", "amount", "description", "date", "paidByMemberId"]
+    },
+    "bill": {
+      "title": "Bill",
+      "description": "Monthly recurring bill or invoice",
+      "type": "object",
+      "properties": {
+        "householdId": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 200 },
+        "beneficiary": { "type": "string", "maxLength": 150 },
+        "amount": { "type": "number" },
+        "dueDate": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "maxLength": 20 },
+        "scope": { "type": "string", "maxLength": 20 },
+        "categoryId": { "type": "string", "maxLength": 60 },
+        "splitMethod": { "type": "string", "maxLength": 50 },
+        "assignedToMemberId": { "type": "string", "maxLength": 128 },
+        "barcode": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["householdId", "description", "amount", "dueDate", "status"]
+    },
+    "goal": {
+      "title": "FinancialGoal",
+      "description": "Financial goal or savings target",
+      "type": "object",
+      "properties": {
+        "householdId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 100 },
+        "targetAmount": { "type": "number" },
+        "currentAmount": { "type": "number" },
+        "targetDate": { "type": "string", "maxLength": 20 },
+        "category": { "type": "string", "maxLength": 60 },
+        "scope": { "type": "string", "maxLength": 20 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["householdId", "title", "targetAmount", "currentAmount"]
+    },
+    "invite": {
+      "title": "HouseholdInvite",
+      "description": "Invite code to join a household",
+      "type": "object",
+      "properties": {
+        "householdId": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 30 },
+        "createdByName": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "expiresAt": { "type": "string", "maxLength": 50 },
+        "isUsed": { "type": "boolean" }
+      },
+      "required": ["householdId", "code"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/user" },
+      "description": "Private user profiles with household memberships"
+    },
+    "/households/{householdId}": {
+      "schema": { "$ref": "#/entities/household" },
+      "description": "Shared households with financial configurations"
+    },
+    "/households/{householdId}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/member" },
+      "description": "Members belonging to a specific household"
+    },
+    "/households/{householdId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/transaction" },
+      "description": "Financial transactions belonging to the household"
+    },
+    "/households/{householdId}/bills/{billId}": {
+      "schema": { "$ref": "#/entities/bill" },
+      "description": "Recurring bills and invoices of the household"
+    },
+    "/households/{householdId}/goals/{goalId}": {
+      "schema": { "$ref": "#/entities/goal" },
+      "description": "Financial goals of the household"
+    },
+    "/invites/{inviteId}": {
+      "schema": { "$ref": "#/entities/invite" },
+      "description": "Temporary join codes for households"
+    }
+  }
+}
